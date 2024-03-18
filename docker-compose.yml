@@ -24,6 +24,10 @@ services:
       - "172.16.0.2:5000"
       - "--to_udp"
       - "172.16.0.3:6000"
+      - "--nb_clients"
+      - "32"
+      - "--nb_encoding_threads"
+      - "32"
 
   receive:
     image: diode:receive
@@ -37,5 +41,54 @@ services:
       - "--from_udp"
       - "172.16.0.3:6000"
       - "--to_tcp"
-      - "172.16.0.1:7000"
+      - "172.16.0.10:7000"
+      - "--nb_clients"
+      - "32"
+      - "--nb_decoding_threads"
+      - "32"
+
+  client1:
+    image: diode:client
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    networks:
+      diode_net:
+        ipv4_address: 172.16.0.4
+
+  client2:
+    image: diode:client
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    networks:
+      diode_net:
+        ipv4_address: 172.16.0.12
+
+  client3:
+    image: diode:client
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    networks:
+      diode_net:
+        ipv4_address: 172.16.0.13
+
+  client4:
+    image: diode:client
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    networks:
+      diode_net:
+        ipv4_address: 172.16.0.14
+
+  server:
+    image: diode:server
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    networks:
+      diode_net:
+        ipv4_address: 172.16.0.10
 

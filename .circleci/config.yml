@@ -3,7 +3,7 @@ jobs:
   publish-latest:
     environment:
       SEND_NAME: define42/lidisend
-      SERVER_NAME: define42/lidiserver
+      RECEIVER_NAME: define42/lidireceive
     docker:
       - image: circleci/buildpack-deps:stretch
     steps:
@@ -18,9 +18,9 @@ jobs:
             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             #            sed -i s/RELEASE_DATE/$RELEASE_DATE/g main.go
             docker build -t $SEND_NAME:latest -f Dockerfile.send .
-            docker build -t $SERVER_NAME:latest -f Dockerfile.server .
+            docker build -t $RECEIVER_NAME:latest -f Dockerfile.receive .
             docker push $SEND_NAME:latest
-            docker push $SERVER_NAME:latest
+            docker push $RECEIVER_NAME:latest
             #            docker build -t $IMAGE_NAME:$RELEASE_DATE .
             #            docker push $IMAGE_NAME:$RELEASE_DATE
 workflows:

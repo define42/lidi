@@ -18,7 +18,9 @@ jobs:
             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             #            sed -i s/RELEASE_DATE/$RELEASE_DATE/g main.go
             docker build -t $SEND_NAME:latest -f Dockerfile.send .
-            #            docker push $IMAGE_NAME:latest
+            docker build -t $SERVER_NAME:latest -f Dockerfile.server .
+            docker push $SEND_NAME:latest
+            docker push $SERVER_NAME:latest
             #            docker build -t $IMAGE_NAME:$RELEASE_DATE .
             #            docker push $IMAGE_NAME:$RELEASE_DATE
 workflows:

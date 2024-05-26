@@ -5,6 +5,7 @@ use std::os::fd::AsRawFd;
 use std::{io, mem, net, thread};
 use std::time::Duration;
 
+
 pub struct UdpRecv;
 pub struct UdpSend;
 
@@ -21,6 +22,7 @@ pub struct UdpMessages<D> {
     iovecs: Vec<libc::iovec>,
     buffers: Vec<Vec<u8>>,
     marker: PhantomData<D>,
+    udpdelay: Option<Duration>,
 }
 
 impl<D> UdpMessages<D> {
@@ -29,6 +31,7 @@ impl<D> UdpMessages<D> {
         vlen: usize,
         msglen: Option<usize>,
         addr: Option<net::SocketAddr>,
+        udpdelay: Option<Duration>,
     ) -> Self {
         let (mut msgvec, mut iovecs, mut buffers);
 
@@ -90,6 +93,7 @@ impl<D> UdpMessages<D> {
             iovecs,
             buffers,
             marker: PhantomData,
+            udpdelay,
         }
     }
 }
@@ -97,7 +101,7 @@ impl<D> UdpMessages<D> {
 impl UdpMessages<UdpRecv> {
     pub fn new_receiver(socket: net::UdpSocket, vlen: usize, msglen: usize) -> Self {
         log::info!("UDP configured to receive {vlen} messages (datagrams)");
-        Self::new(socket, vlen, Some(msglen), None)
+        Self::new(socket, vlen, Some(msglen), None, None)
     }
 
     pub fn recv_mmsg(&mut self) -> Result<impl Iterator<Item = &[u8]>, io::Error> {
@@ -129,9 +133,11 @@ impl UdpMessages<UdpSend> {
         socket: net::UdpSocket,
         vlen: usize,
         dest: net::SocketAddr,
+        udpdelay: Option<Duration>,
     ) -> UdpMessages<UdpSend> {
         log::info!("UDP configured to send {vlen} messages (datagrams) at a time");
-        Self::new(socket, vlen, None, Some(dest))
+        Self::new(socket, vlen, None, Some(dest), udpdelay)
+        
     }
 
     pub fn send_mmsg(&mut self, mut buffers: Vec<Vec<u8>>) -> Result<(), io::Error> {
@@ -141,6 +147,7 @@ impl UdpMessages<UdpSend> {
                 self.msgvec[i].msg_len = buf.len() as u32;
                 self.iovecs[i].iov_base = buf.as_mut_ptr().cast::<libc::c_void>();
                 self.iovecs[i].iov_len = buf.len();
+                
 
                 let nb_msg;
                 unsafe {
@@ -151,10 +158,11 @@ impl UdpMessages<UdpSend> {
                         0,
                     );
                 }
+                
                 if nb_msg == -1 {
                     return Err(io::Error::new(io::ErrorKind::Other, "libc::sendmmsg"));
                 }
-                thread::sleep(Duration::from_micros(100));
+                thread::sleep(self.udpdelay.unwrap());                
             }
         }
         Ok(())

@@ -23,6 +23,7 @@ struct Config {
     to_udp: net::SocketAddr,
     to_udp_mtu: u16,
     heartbeat: Option<time::Duration>,
+    udpdelay: Option<time::Duration>,
 }
 
 fn command_args() -> Config {
@@ -120,6 +121,14 @@ fn command_args() -> Config {
                 .value_parser(clap::value_parser!(u16))
                 .help("Duration between two emitted heartbeat messages, 0 to disable"),
         )
+        .arg(
+            Arg::new("udpdelay")
+                .long("udpdelay")
+                .value_name("udp_delay_in_micros")
+                .default_value("0")
+                .value_parser(clap::value_parser!(u16))
+                .help("Delay between udp packets are forwarded to catcher, 0 to disable"),
+        )
         .get_matches();
 
     let from_tcp = net::SocketAddr::from_str(args.get_one::<String>("from_tcp").expect("default"))
@@ -147,6 +156,10 @@ fn command_args() -> Config {
         let hb = *args.get_one::<u16>("heartbeat").expect("default") as u64;
         (hb != 0).then(|| time::Duration::from_secs(hb))
     };
+    let udpdelay = {
+        let ud: u64 = *args.get_one::<u16>("udpdelay").expect("default") as u64;
+        (ud != 0).then(|| time::Duration::from_micros(ud))
+    };
 
     Config {
         from_tcp,
@@ -161,6 +174,7 @@ fn command_args() -> Config {
         to_udp,
         to_udp_mtu,
         heartbeat,
+        udpdelay,
     }
 }
 
@@ -248,6 +262,7 @@ fn main() {
         to_bind: config.to_bind,
         to_udp: config.to_udp,
         to_mtu: config.to_udp_mtu,
+        udpdelay: config.udpdelay,
     });
 
     thread::scope(|scope| {

@@ -46,8 +46,6 @@ On the diode-receive side, data will be sent to TCP connected clients. To specif
 
    --to_tcp <ip:port>
 
-Default value is 127.0.0.1:7000.
-
 Unix data source
 """"""""""""""""
 
@@ -91,6 +89,15 @@ On the receiver side, the option:
 
 defines ip and port to listen for incoming UDP packets, and should be set to the same value as `--to-udp`.
 
+Optionally, you can set the size of the UDP socket buffers with following option:
+
+.. code-block::
+
+   --udp_buffer_size <nb_bytes>
+
+This option is available on both sides. Default value is 1073741824 which is the highest possible value.
+The specified size is then doubled by the kernel (see https://man7.org/linux/man-pages/man7/socket.7.html).
+
 Block and packet sizes
 ----------------------
 
@@ -124,6 +131,13 @@ Then, on the logical level, fountain codes operates on blocks. If blocks reorder
 
 The default value for an encoding block is 60000, and repair block size is defaulted to 10% of this value (6000).
 See the :ref:`Tweaking parameters` chapter for more details on how to choose optimal values for your particular use case and devices.
+
+Because of how UDP works, blocks may sometimes be received in a wildly different order: you may start receiving block number 12 before you finished receiving all packets for block number 10. Because of that, lidi will keep track of a given amount of blocks before considering them lost (up to 8 by default).
+
+.. code-block::
+
+   --reblock_retention_window <nb_blocks>
+     on the receiver side
 
 Multiplexing
 ------------

@@ -2,7 +2,8 @@
 
 use std::marker::PhantomData;
 use std::os::fd::AsRawFd;
-use std::{io, mem, net};
+use std::{io, mem, net, thread};
+use std::time::Duration;
 
 pub struct UdpRecv;
 pub struct UdpSend;
@@ -135,28 +136,25 @@ impl UdpMessages<UdpSend> {
 
     pub fn send_mmsg(&mut self, mut buffers: Vec<Vec<u8>>) -> Result<(), io::Error> {
         for bufchunk in buffers.chunks_mut(self.vlen) {
-            let to_send = bufchunk.len();
 
             for (i, buf) in bufchunk.iter_mut().enumerate() {
                 self.msgvec[i].msg_len = buf.len() as u32;
                 self.iovecs[i].iov_base = buf.as_mut_ptr().cast::<libc::c_void>();
                 self.iovecs[i].iov_len = buf.len();
-            }
 
-            let nb_msg;
-            unsafe {
-                nb_msg = libc::sendmmsg(
-                    self.socket.as_raw_fd(),
-                    self.msgvec.as_mut_ptr(),
-                    to_send as u32,
-                    0,
-                );
-            }
-            if nb_msg == -1 {
-                return Err(io::Error::new(io::ErrorKind::Other, "libc::sendmmsg"));
-            }
-            if nb_msg as usize != to_send {
-                log::warn!("nb prepared messages doesn't match with nb sent messages");
+                let nb_msg;
+                unsafe {
+                    nb_msg = libc::sendmmsg(
+                        self.socket.as_raw_fd(),
+                        &mut self.msgvec[i],
+                        1,
+                        0,
+                    );
+                }
+                if nb_msg == -1 {
+                    return Err(io::Error::new(io::ErrorKind::Other, "libc::sendmmsg"));
+                }
+                thread::sleep(Duration::from_micros(100));
             }
         }
         Ok(())

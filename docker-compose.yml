@@ -29,7 +29,7 @@ services:
       - "--nb_encoding_threads"
       - "32"
       - "--bandwidth_limit"
-      - "50"
+      - "10"
 
   receive:
     image: diode:receive

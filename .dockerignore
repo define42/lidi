@@ -1,5 +1,9 @@
 *
 !src
+!go.mod
+!client.go
+!server.go
+!webserverclient.go
 !Cargo.toml
 !Cargo.lock
 !diode-file-bindings/src

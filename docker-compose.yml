@@ -28,9 +28,13 @@ services:
       - "32"
       - "--nb_encoding_threads"
       - "32"
+      - "--bandwidth_limit"
+      - "50"
 
   receive:
     image: diode:receive
+    environment:
+      RUST_BACKTRACE: full
     build:
       context: .
       dockerfile: Dockerfile.receive
@@ -48,7 +52,11 @@ services:
       - "32"
 
   client1:
-    image: diode:client
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    ports:
+     - 8080:8080
     build:
       context: .
       dockerfile: Dockerfile.client
@@ -56,32 +64,8 @@ services:
       diode_net:
         ipv4_address: 172.16.0.4
 
-  client2:
-    image: diode:client
-    build:
-      context: .
-      dockerfile: Dockerfile.client
-    networks:
-      diode_net:
-        ipv4_address: 172.16.0.12
 
-  client3:
-    image: diode:client
-    build:
-      context: .
-      dockerfile: Dockerfile.client
-    networks:
-      diode_net:
-        ipv4_address: 172.16.0.13
 
-  client4:
-    image: diode:client
-    build:
-      context: .
-      dockerfile: Dockerfile.client
-    networks:
-      diode_net:
-        ipv4_address: 172.16.0.14
 
   server:
     image: diode:server

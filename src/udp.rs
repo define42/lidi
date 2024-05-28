@@ -3,7 +3,7 @@
 use std::marker::PhantomData;
 use std::os::fd::AsRawFd;
 use std::{io, mem, net, thread};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 
 pub struct UdpRecv;
@@ -22,7 +22,7 @@ pub struct UdpMessages<D> {
     iovecs: Vec<libc::iovec>,
     buffers: Vec<Vec<u8>>,
     marker: PhantomData<D>,
-    udpdelay: Option<Duration>,
+    bandwidth_limit: f64,
 }
 
 impl<D> UdpMessages<D> {
@@ -31,7 +31,7 @@ impl<D> UdpMessages<D> {
         vlen: usize,
         msglen: Option<usize>,
         addr: Option<net::SocketAddr>,
-        udpdelay: Option<Duration>,
+        bandwidth_limit: f64,
     ) -> Self {
         let (mut msgvec, mut iovecs, mut buffers);
 
@@ -93,7 +93,7 @@ impl<D> UdpMessages<D> {
             iovecs,
             buffers,
             marker: PhantomData,
-            udpdelay,
+            bandwidth_limit,
         }
     }
 }
@@ -101,7 +101,7 @@ impl<D> UdpMessages<D> {
 impl UdpMessages<UdpRecv> {
     pub fn new_receiver(socket: net::UdpSocket, vlen: usize, msglen: usize) -> Self {
         log::info!("UDP configured to receive {vlen} messages (datagrams)");
-        Self::new(socket, vlen, Some(msglen), None, None)
+        Self::new(socket, vlen, Some(msglen), None, 0.0)
     }
 
     pub fn recv_mmsg(&mut self) -> Result<impl Iterator<Item = &[u8]>, io::Error> {
@@ -133,22 +133,24 @@ impl UdpMessages<UdpSend> {
         socket: net::UdpSocket,
         vlen: usize,
         dest: net::SocketAddr,
-        udpdelay: Option<Duration>,
+        bandwidth_limit: f64,
     ) -> UdpMessages<UdpSend> {
         log::info!("UDP configured to send {vlen} messages (datagrams) at a time");
-        Self::new(socket, vlen, None, Some(dest), udpdelay)
+        //std::println!("{}",udpdelay.unwrap().as_micros());
+        Self::new(socket, vlen, None, Some(dest), bandwidth_limit)
         
     }
 
     pub fn send_mmsg(&mut self, mut buffers: Vec<Vec<u8>>) -> Result<(), io::Error> {
         for bufchunk in buffers.chunks_mut(self.vlen) {
-
+ 
             for (i, buf) in bufchunk.iter_mut().enumerate() {
                 self.msgvec[i].msg_len = buf.len() as u32;
                 self.iovecs[i].iov_base = buf.as_mut_ptr().cast::<libc::c_void>();
                 self.iovecs[i].iov_len = buf.len();
                 
 
+                let start_time = Instant::now();
                 let nb_msg;
                 unsafe {
                     nb_msg = libc::sendmmsg(
@@ -162,7 +164,25 @@ impl UdpMessages<UdpSend> {
                 if nb_msg == -1 {
                     return Err(io::Error::new(io::ErrorKind::Other, "libc::sendmmsg"));
                 }
-                thread::sleep(self.udpdelay.unwrap());                
+
+                if self.bandwidth_limit > 0.0 {
+
+                let send_duration = start_time.elapsed().as_secs_f64();
+                let bytes_sent = buf.len() as f64;
+                let ideal_time_per_byte = 1.0 / self.bandwidth_limit;
+                let ideal_send_duration = bytes_sent * ideal_time_per_byte;
+                let sleep_duration = if ideal_send_duration > send_duration {
+                    Duration::from_secs_f64(ideal_send_duration - send_duration)
+                } else {
+                    Duration::from_secs(0)
+                };
+
+//                std::println!("ideal_send_duration: {}, send_duration: {}, sleep_duration: {}", ideal_send_duration, send_duration, sleep_duration.as_secs_f64());
+
+                // Wait to throttle the speed
+                thread::sleep(sleep_duration);
+            }
+
             }
         }
         Ok(())

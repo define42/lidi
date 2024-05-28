@@ -44,7 +44,7 @@ pub struct Config {
     pub to_bind: net::SocketAddr,
     pub to_udp: net::SocketAddr,
     pub to_mtu: u16,
-    pub udpdelay: Option<time::Duration>,
+    pub bandwidth_limit: f64,
 }
 
 impl Config {
